@@ -1,0 +1,529 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debate Room | {{ room.id }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .debate-card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .debate-card:hover {
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .timer-circle {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+        .timer-progress {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 1s linear;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        .time-warning {
+            color: #f59e0b;
+        }
+        .time-danger {
+            color: #ef4444;
+        }
+        .sound-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Sound Files -->
+    <audio id="warning-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3" type="audio/mpeg">
+        <!-- Fallback local file path (if you store audio files in your Django static folder) -->
+        <!-- <source src="{% static 'sounds/warning.mp3' %}" type="audio/mpeg"> -->
+    </audio>
+    
+    <audio id="time-up-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/3005/3005-preview.mp3" type="audio/mpeg">
+        <!-- <source src="{% static 'sounds/timeup.mp3' %}" type="audio/mpeg"> -->
+    </audio>
+    
+    <audio id="halfway-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/1322/1322-preview.mp3" type="audio/mpeg">
+        <!-- <source src="{% static 'sounds/halfway.mp3' %}" type="audio/mpeg"> -->
+    </audio>
+
+    <div class="container mx-auto px-4 py-8 relative">
+        <!-- Sound Controls -->
+        <div class="sound-controls">
+            <button id="toggle-sound" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-full flex items-center">
+                <i id="sound-icon" class="fas fa-volume-up mr-2"></i>
+                <span id="sound-text">Sound On</span>
+            </button>
+        </div>
+        <div class="flex justify-start gap-4 mt-4">
+            <a href="{% url 'landing_page' %}" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 flex items-center">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Exit
+            </a>
+        </div>
+        <!-- Header Section -->
+        <div class="mb-6 text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Debate Room: {{ room.id }}</h1>
+            <div class="inline-block bg-blue-600 text-white px-6 py-2 rounded-full text-xl mb-4">
+                <i class="fas fa-comments mr-2"></i>Topic: {{ room.topic }}
+            </div>
+            
+            <!-- Judge and Results Buttons -->
+            <div class="flex justify-center gap-4 mt-4">
+                <a href="{% url 'judge_room' room_id=room.id %}" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 flex items-center">
+                    <i class="fas fa-gavel mr-2"></i>
+                    Judge Debate
+                </a>
+                
+                <a id="results-button" href="{% url 'debate_results' room_id=room.id %}" class="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center hidden">
+                    <i class="fas fa-trophy mr-2"></i>
+                    View Results
+                </a>
+            </div>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-8">
+            <!-- Debate Order Panel -->
+            <div class="md:col-span-1">
+                <div class="debate-card bg-white rounded-xl p-6">
+                    <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">
+                        <i class="fas fa-list-ol mr-2"></i>Debate Order
+                    </h3>
+                    <ul class="space-y-3">
+                        {% for role, name in ordered_players %}
+                            <li class="flex items-center p-2 rounded-lg {% if forloop.counter0 == 0 %}bg-blue-100 border-l-4 border-blue-500{% endif %}">
+                                <span class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 mr-3">
+                                    {{ forloop.counter }}
+                                </span>
+                                <div>
+                                    <span class="font-medium text-gray-800">{{ name }}</span>
+                                    <span class="text-sm text-gray-500 ml-2">({{ role }})</span>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Current Speaker and Timer Panel -->
+            <div class="md:col-span-2">
+                <div class="debate-card bg-white rounded-xl p-6">
+                    <div id="current-player" class="mb-6 text-center">
+                        {% if room.players.all %}
+                            {% with current_player=room.players.first %}
+                                <h3 class="text-2xl font-bold text-gray-800">
+                                    <i class="fas fa-user-circle mr-2"></i>
+                                    <span id="current-speaker-name">{{ current_player }}</span>
+                                    <span class="text-blue-600" id="current-speaker-role">({{ current_player.role }})</span>
+                                </h3>
+                            {% endwith %}
+                        {% else %}
+                            <p class="text-lg text-gray-600">No players available.</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Timer Display -->
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="timer-circle mb-6">
+                            <svg width="150" height="150" viewBox="0 0 150 150">
+                                <!-- Background circle -->
+                                <circle cx="75" cy="75" r="65" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+                                <!-- Progress circle -->
+                                <circle 
+                                    id="timer-progress" 
+                                    cx="75" 
+                                    cy="75" 
+                                    r="65" 
+                                    fill="none" 
+                                    stroke="#3b82f6" 
+                                    stroke-width="10" 
+                                    stroke-dasharray="408" 
+                                    stroke-dashoffset="0"
+                                    class="timer-progress"
+                                />
+                                <!-- Time text will be added dynamically via JS -->
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="timer" class="text-3xl font-bold text-gray-800">7:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-4">
+                            <button 
+                                id="start-timer" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
+                                onclick="toggleTimer()">
+                                <i class="fas fa-play mr-2"></i>
+                                <span id="timer-button-text">Start Speaking</span>
+                            </button>
+                            
+                            <button 
+                                id="reset-timer" 
+                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 flex items-center hidden"
+                                onclick="resetTimer()">
+                                <i class="fas fa-redo-alt mr-2"></i>
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Timer notifications -->
+                    <div id="notification-area" class="mt-6 text-center hidden">
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-circle text-yellow-400"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p id="notification-text" class="text-sm text-yellow-700"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debate Progress Bar -->
+        <div class="mt-8 p-6 bg-white rounded-xl debate-card">
+            <h3 class="text-xl font-semibold mb-4 text-gray-700">Debate Progress</h3>
+            <div class="w-full bg-gray-200 rounded-full h-4">
+                <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="mt-2 text-sm text-gray-600 flex justify-between">
+                <span>Start</span>
+                <span id="progress-text">0%</span>
+                <span>End</span>
+            </div>
+        </div>
+        
+        <!-- Sound Configuration Panel -->
+        <div class="mt-8 p-6 bg-white rounded-xl debate-card">
+            <h3 class="text-xl font-semibold mb-4 text-gray-700 flex items-center">
+                <i class="fas fa-volume-up mr-2"></i>Sound Alerts
+            </h3>
+            <div class="grid md:grid-cols-3 gap-4">
+                <div class="form-group">
+                    <label for="halfway-alert" class="block text-sm font-medium text-gray-700 mb-1">Halfway Alert</label>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="halfway-alert" class="mr-2 h-4 w-4 text-blue-600" checked>
+                        <span class="ml-2 text-sm text-gray-600">3:30 remaining</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="warning-alert" class="block text-sm font-medium text-gray-700 mb-1">Warning Alert</label>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="warning-alert" class="mr-2 h-4 w-4 text-blue-600" checked>
+                        <span class="ml-2 text-sm text-gray-600">2:00 remaining</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="final-alert" class="block text-sm font-medium text-gray-700 mb-1">Final Alert</label>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="final-alert" class="mr-2 h-4 w-4 text-blue-600" checked>
+                        <span class="ml-2 text-sm text-gray-600">30 seconds remaining</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <button id="test-sounds" class="text-blue-600 hover:text-blue-800 text-sm flex items-center mt-2" onclick="testSounds()">
+                    <i class="fas fa-play-circle mr-1"></i>Test Sounds
+                </button>
+            </div>
+        </div>
+        
+        <!-- After Debate Complete Panel -->
+        <div id="debate-complete-panel" class="mt-8 p-6 bg-white rounded-xl debate-card hidden">
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-check-circle text-green-500 mr-2"></i>Debate Complete!
+                </h3>
+                <p class="text-gray-600 mb-6">All speakers have finished. You can now proceed to judge the debate or view results.</p>
+                
+                <div class="flex justify-center gap-4">
+                    <a href="{% url 'judge_room' room_id=room.id %}" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 flex items-center">
+                        <i class="fas fa-gavel mr-2"></i>
+                        Judge Debate
+                    </a>
+                    
+                    <a href="{% url 'debate_results' room_id=room.id %}" class="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg shadow-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center">
+                        <i class="fas fa-trophy mr-2"></i>
+                        View Results
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let players = {{ ordered_players_json|safe }};
+        let roles = {{ roles_json|safe }};
+        let currentPlayerIndex = 0;
+        let timeLeft = 420; // 7 minutes in seconds
+        let totalTime = 420;
+        let timer = null;
+        let timerRunning = false;
+        let circumference = 2 * Math.PI * 65; // Circumference of the timer circle
+        let soundEnabled = true;
+        let soundAlertPoints = {
+            halfway: 210, // 3:30
+            warning: 120, // 2:00
+            final: 30,    // 0:30
+            timeUp: 0     // Time's up!
+        };
+        
+        // Sound-related functions
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundIcon = document.getElementById('sound-icon');
+            const soundText = document.getElementById('sound-text');
+            
+            if (soundEnabled) {
+                soundIcon.className = 'fas fa-volume-up mr-2';
+                soundText.textContent = 'Sound On';
+            } else {
+                soundIcon.className = 'fas fa-volume-mute mr-2';
+                soundText.textContent = 'Sound Off';
+            }
+        }
+        
+        function playSound(soundId) {
+            if (soundEnabled) {
+                const sound = document.getElementById(soundId);
+                if (sound) {
+                    sound.currentTime = 0; // Reset to start
+                    sound.play().catch(err => {
+                        console.log('Audio playback error:', err);
+                    });
+                }
+            }
+        }
+        
+        function testSounds() {
+            // Play each sound with a delay between them
+            setTimeout(() => {
+                playSound('halfway-sound');
+                showNotification("Testing: Halfway Sound (3:30 remaining)", "info");
+            }, 0);
+            
+            setTimeout(() => {
+                playSound('warning-sound');
+                showNotification("Testing: Warning Sound (2:00 remaining)", "warning");
+            }, 1500);
+            
+            setTimeout(() => {
+                playSound('time-up-sound');
+                showNotification("Testing: Time's Up Sound", "danger");
+            }, 3000);
+        }
+        
+        // Initialize timer and update UI
+        function updateSpeaker() {
+            if (currentPlayerIndex >= players.length) {
+                document.getElementById("current-player").innerHTML = `
+                    <h3 class="text-2xl font-bold text-gray-800">
+                        <i class="fas fa-trophy mr-2"></i>
+                        Debate Finished!
+                    </h3>`;
+                document.getElementById("start-timer").classList.add("hidden");
+                document.getElementById("reset-timer").classList.add("hidden");
+                updateProgressBar(100);
+                
+                // Show the debate complete panel and results button
+                document.getElementById("debate-complete-panel").classList.remove("hidden");
+                document.getElementById("results-button").classList.remove("hidden");
+                return;
+            }
+            
+            let name = players[currentPlayerIndex];
+            let role = roles[name];
+            
+            document.getElementById("current-speaker-name").textContent = name;
+            document.getElementById("current-speaker-role").textContent = `(${role})`;
+            
+            // Highlight current speaker in the list
+            const speakerItems = document.querySelectorAll("ul li");
+            speakerItems.forEach((item, index) => {
+                if (index === currentPlayerIndex) {
+                    item.classList.add("bg-blue-100", "border-l-4", "border-blue-500");
+                } else {
+                    item.classList.remove("bg-blue-100", "border-l-4", "border-blue-500");
+                }
+            });
+            
+            // Update progress bar
+            updateProgressBar((currentPlayerIndex / players.length) * 100);
+        }
+        
+        function updateProgressBar(percentage) {
+            document.getElementById("progress-bar").style.width = `${percentage}%`;
+            document.getElementById("progress-text").textContent = `${Math.round(percentage)}%`;
+        }
+        
+        function toggleTimer() {
+            if (timerRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+        
+        function startTimer() {
+            document.getElementById("timer-button-text").textContent = "Pause";
+            document.getElementById("start-timer").innerHTML = '<i class="fas fa-pause mr-2"></i><span id="timer-button-text">Pause</span>';
+            document.getElementById("reset-timer").classList.remove("hidden");
+            timerRunning = true;
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                // Check for sound alerts
+                checkTimeAndPlaySound();
+                
+                // Once the time is up
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    timerRunning = false;
+                    showNotification("Time's up! Please conclude your points.", "danger");
+                    document.getElementById("timer").classList.add("pulse-animation");
+                    
+                    // Prepare for next speaker
+                    setTimeout(() => {
+                        moveToNextSpeaker();
+                    }, 3000);
+                }
+            }, 1000);
+        }
+        
+        function checkTimeAndPlaySound() {
+            // Halfway point alert
+            if (timeLeft === soundAlertPoints.halfway && document.getElementById('halfway-alert').checked) {
+                playSound('halfway-sound');
+                showNotification("Halfway point: 3:30 remaining", "info");
+            }
+            // Warning alert
+            else if (timeLeft === soundAlertPoints.warning && document.getElementById('warning-alert').checked) {
+                playSound('warning-sound');
+                showNotification("2 minutes remaining!", "warning");
+            }
+            // Final alert
+            else if (timeLeft === soundAlertPoints.final && document.getElementById('final-alert').checked) {
+                playSound('warning-sound');
+                showNotification("30 seconds remaining!", "danger");
+            }
+            // Time's up
+            else if (timeLeft === soundAlertPoints.timeUp) {
+                playSound('time-up-sound');
+            }
+        }
+        
+        function pauseTimer() {
+            clearInterval(timer);
+            document.getElementById("timer-button-text").textContent = "Resume";
+            document.getElementById("start-timer").innerHTML = '<i class="fas fa-play mr-2"></i><span id="timer-button-text">Resume</span>';
+            timerRunning = false;
+        }
+        
+        function resetTimer() {
+            clearInterval(timer);
+            timeLeft = totalTime;
+            updateTimerDisplay();
+            document.getElementById("timer-button-text").textContent = "Start Speaking";
+            document.getElementById("start-timer").innerHTML = '<i class="fas fa-play mr-2"></i><span id="timer-button-text">Start Speaking</span>';
+            document.getElementById("reset-timer").classList.add("hidden");
+            document.getElementById("notification-area").classList.add("hidden");
+            document.getElementById("timer").classList.remove("pulse-animation", "time-warning", "time-danger");
+            timerRunning = false;
+        }
+        
+        function moveToNextSpeaker() {
+            resetTimer();
+            currentPlayerIndex++;
+            updateSpeaker();
+        }
+        
+        function updateTimerDisplay() {
+            // Update digital timer
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            document.getElementById("timer").textContent = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            
+            // Update circular progress
+            const offset = circumference - (timeLeft / totalTime) * circumference;
+            document.getElementById("timer-progress").style.strokeDashoffset = offset;
+            
+            // Update timer color based on time remaining
+            const timerElement = document.getElementById("timer");
+            timerElement.classList.remove("time-warning", "time-danger");
+            
+            if (timeLeft <= 30) {
+                timerElement.classList.add("time-danger");
+            } else if (timeLeft <= 120) {
+                timerElement.classList.add("time-warning");
+            }
+        }
+        
+        function showNotification(message, type) {
+            const notificationArea = document.getElementById("notification-area");
+            const notificationText = document.getElementById("notification-text");
+            
+            notificationText.textContent = message;
+            notificationArea.classList.remove("hidden");
+            
+            // Change notification style based on type
+            const notification = notificationArea.firstElementChild;
+            notification.className = "p-4 rounded flex items-center";
+            
+            if (type === "info") {
+                notification.classList.add("bg-blue-50", "border-l-4", "border-blue-400");
+                notificationText.className = "text-sm text-blue-700";
+            } else if (type === "warning") {
+                notification.classList.add("bg-yellow-50", "border-l-4", "border-yellow-400");
+                notificationText.className = "text-sm text-yellow-700";
+            } else if (type === "danger") {
+                notification.classList.add("bg-red-50", "border-l-4", "border-red-400");
+                notificationText.className = "text-sm text-red-700";
+            }
+            
+            // Auto-hide notification after 5 seconds
+            setTimeout(() => {
+                notificationArea.classList.add("hidden");
+            }, 5000);
+        }
+        
+        // Initialize timer display
+        function initializeTimer() {
+            document.getElementById("timer-progress").style.strokeDasharray = circumference;
+            updateTimerDisplay();
+        }
+        
+        // Run on page load
+        window.onload = function() {
+            updateSpeaker();
+            initializeTimer();
+            
+            // Add event listener for sound toggle
+            document.getElementById('toggle-sound').addEventListener('click', toggleSound);
+        };
+    </script>
+</body>
+</html>

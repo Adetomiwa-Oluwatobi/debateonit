@@ -1,0 +1,346 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debate Academy: {{ tutorial.title }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .tutorial-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tutorial-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .resource-link {
+            transition: color 0.2s ease;
+        }
+        .resource-link:hover {
+            color: #4338ca;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .tutorial-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin: 1.5rem 0;
+        }
+        .tutorial-content h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        .tutorial-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .tutorial-content p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+            color: #4b5563;
+        }
+        .tutorial-content ul, .tutorial-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .tutorial-content li {
+            margin-bottom: 0.5rem;
+            color: #4b5563;
+        }
+        .tutorial-content pre {
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        .tutorial-content blockquote {
+            border-left: 4px solid #4f46e5;
+            padding-left: 1rem;
+            font-style: italic;
+            margin: 1.5rem 0;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-gray-900 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
+            <div class="flex items-center">
+                <i class="fas fa-gavel text-2xl mr-3"></i>
+                <h1 class="text-2xl font-bold">Debate Academy</h1>
+            </div>
+            <nav>
+                <ul class="flex space-x-6">
+                    <li><a href="/" class="hover:text-indigo-200 transition">Home</a></li>
+                    <li><a href="{% url 'landing_page' %}" class="hover:text-indigo-200 transition">Debate Rooms</a></li>
+                    <li><a href="{% url 'tutorial_list' %}" class="hover:text-indigo-200 transition">Tutorials</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-10">
+        <!-- Breadcrumb Navigation -->
+        <div class="flex items-center text-sm text-gray-500 mb-6">
+            <a href="{% url 'landing_page' %}" class="hover:text-indigo-600">Home</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <a href="{% url 'tutorial_list' %}" class="hover:text-indigo-600">Tutorials</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-700">{{ tutorial.title }}</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content Column -->
+            <div class="lg:col-span-2">
+                <!-- Tutorial Header -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-indigo-600 text-white p-3 rounded-lg mr-4">
+                            <i class="{{ tutorial.icon_class|default:'fas fa-book' }} text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800">{{ tutorial.title }}</h1>
+                            <div class="flex items-center mt-2">
+                                <span class="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded">{{ tutorial.category.name }}</span>
+                                <span class="text-gray-500 text-sm ml-4">
+                                    <i class="far fa-calendar-alt mr-1"></i>
+                                    {{ tutorial.created_at|date:"F j, Y" }}
+                                </span>
+                                {% if tutorial.featured %}
+                                <span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded ml-2">Featured</span>
+                                {% endif %}
+                            </div>
+                            
+                        </div>
+                    </div>
+                    
+                    {% if tutorial.image %}
+                    <div class="mt-6">
+                        <img src="{{ tutorial.image.url }}" alt="{{ tutorial.title }}" class="w-full h-auto rounded-lg object-cover">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-6">
+                        <p class="text-lg text-gray-700 leading-relaxed">{{ tutorial.short_description }}</p>
+                    </div>
+                </div>
+                
+                <!-- Tutorial Content -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Tutorial Content</h2>
+                    <div class="tutorial-content prose max-w-none">
+                        {{ tutorial.content|safe }}
+                        {% if tutorial.video_embed_url %}
+                            <div class="mt-6">
+                                <div class="video-container">
+                                    <iframe 
+                                        src="{{ tutorial.video_embed_url }}" 
+                                        title="{{ tutorial.title }}"
+                                        frameborder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen>
+                                    </iframe>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if tutorial.file %}
+                            <div class="mt-6">
+                                <div class="pdf-container">
+                                    <iframe 
+                                        src="{{ tutorial.file }}" 
+                                        title="{{ tutorial.title }}"
+                                        width="100%" 
+                                        height="600px"
+                                        frameborder="0">
+                                    </iframe>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if tutorial.url %}
+                            <div class="mt-6">
+                                <div class="pdf-container">
+                                    <iframe 
+                                        src="{{ tutorial.url }}" 
+                                        title="{{ tutorial.title }}"
+                                        width="100%" 
+                                        height="600px"
+                                        frameborder="0">
+                                    </iframe>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if tutorial.external_link %}
+                            <div class="mt-6">
+                                <div class="pdf-container">
+                                    <iframe 
+                                        src="{{ tutorial.external_link }}" 
+                                        title="{{ tutorial.title }}"
+                                        width="100%" 
+                                        height="600px"
+                                        frameborder="0">
+                                    </iframe>
+                                </div>
+                            </div>
+                            {% endif %}
+                        
+                        
+                    </div>
+                </div>
+                
+                <!-- Additional Resources Section -->
+                {% if tutorial.resources %}
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Additional Resources</h2>
+                    <div class="space-y-4">
+                        {% for resource in tutorial.resources.all %}
+                        <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full mr-4">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="font-medium text-gray-800">{{ resource.title }}</h3>
+                                {% if resource.description %}
+                                <p class="text-sm text-gray-600 mt-1">{{ resource.description }}</p>
+                                {% endif %}
+                            </div>
+                            <a href="{% url 'download_resource' resource.id %}" class="resource-link flex items-center text-indigo-600 font-medium">
+                                <span>Download</span>
+                                <i class="fas fa-download ml-2"></i>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Sidebar Column -->
+            <div class="lg:col-span-1">
+                <!-- Author Card -->
+                {% if tutorial.author %}
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">About the Author</h3>
+                    <div class="flex items-center mb-4">
+                        {% if tutorial.author.profile_pic %}
+                        <img src="{{ tutorial.author.profile_pic.url }}" alt="{{ tutorial.author.name }}" class="w-12 h-12 rounded-full object-cover mr-4">
+                        {% else %}
+                        <div class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold mr-4">
+                            {{ tutorial.author.name|slice:":1" }}
+                        </div>
+                        {% endif %}
+                        <div>
+                            <h4 class="font-medium text-gray-800">{{ tutorial.author.name }}</h4>
+                            {% if tutorial.author.role %}
+                            <p class="text-sm text-gray-600">{{ tutorial.author.role }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if tutorial.author.bio %}
+                    <p class="text-gray-700">{{ tutorial.author.bio|truncatewords:30 }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Related Tutorials -->
+                {% if related_tutorials %}
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Related Tutorials</h3>
+                    <div class="space-y-4">
+                        {% for related in related_tutorials %}
+                        <a href="{% url 'tutorial_detail' tutorial_slug=related.slug %}" class="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <h4 class="font-medium text-gray-800">{{ related.title }}</h4>
+                            <p class="text-sm text-gray-600 mt-1">{{ related.short_description|truncatewords:10 }}</p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Practice CTA -->
+                <div class="bg-indigo-50 rounded-lg shadow-md p-6 mt-6 border border-indigo-100">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Ready to Practice?</h3>
+                    <p class="text-gray-700 mb-4">Apply what you've learned by joining a debate room.</p>
+                    <a href="{% url 'room_create' %}" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white text-center font-medium py-2 px-4 rounded transition">
+                        Join a Debate Room
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-20">
+        <div class="max-w-6xl mx-auto px-4 py-10">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">Debate Academy</h3>
+                    <p class="text-gray-400">Empowering speakers through structured debate training and practice.</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-medium mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">About Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">FAQ</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-medium mb-4">Connect With Us</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-twitter text-xl"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-facebook text-xl"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-instagram text-xl"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-youtube text-xl"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
+                <p>&copy; {% now "Y" %} Debate Academy. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for additional functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Track resource clicks
+            const resourceLinks = document.querySelectorAll('.resource-link');
+            resourceLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const resourceName = this.closest('div').querySelector('h3').textContent;
+                    console.log(`Resource clicked: ${resourceName}`);
+                    // You could add analytics tracking here
+                });
+            });
+        });
+    </script>
+</body>
+</html>

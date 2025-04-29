@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Debate Room | Debate Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script>
+        function showPlayerInputs() {
+            const playerCount = document.querySelector('input[name="player_count"]:checked').value;
+            const inputContainer = document.getElementById('player-inputs');
+            const formatInfo = document.getElementById('format-info');
+            
+            // Clear previous inputs
+            inputContainer.innerHTML = '';
+            
+            // Update format information
+            if (playerCount === '4') {
+                formatInfo.innerHTML = `
+                    <div class="bg-blue-50 p-4 rounded-lg mb-6">
+                        <h3 class="text-blue-800 font-semibold mb-2">Standard Format (4 Players)</h3>
+                        <p class="text-blue-600">Two teams with two speakers each. Ideal for classroom debates or practice sessions.</p>
+                    </div>
+                `;
+            } else {
+                formatInfo.innerHTML = `
+                    <div class="bg-blue-50 p-4 rounded-lg mb-6">
+                        <h3 class="text-blue-800 font-semibold mb-2">British Parliamentary Format (8 Players)</h3>
+                        <p class="text-blue-600">Four teams with two speakers each. Standard format for competitive parliamentary debate tournaments.</p>
+                    </div>
+                `;
+            }
+
+            // Create player input fields
+            for (let i = 1; i <= parseInt(playerCount); i++) {
+                const teamNumber = Math.ceil(i/2);
+                const position = i % 2 === 1 ? "First Speaker" : "Second Speaker";
+                const side = teamNumber <= parseInt(playerCount)/4 ? "Proposition" : "Opposition";
+                const teamLabel = parseInt(playerCount) === 8 ? 
+                    `${side} Team ${teamNumber <= 2 ? "Opening" : "Closing"}` : 
+                    `${side} Team`;
+                
+                if (i % 2 === 1) {
+                    inputContainer.innerHTML += `
+                        <div class="mb-6 p-4 rounded-lg ${side === 'Proposition' ? 'bg-green-50' : 'bg-red-50'}">
+                            <h3 class="font-medium text-lg mb-3">${teamLabel}</h3>
+                    `;
+                }
+                
+                inputContainer.innerHTML += `
+                    <div class="mb-4">
+                        <label for="player${i}" class="block text-sm font-medium text-gray-700 mb-1">
+                            ${position} Name:
+                        </label>
+                        <div class="relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                            <input type="text" id="player${i}" name="player${i}" 
+                                class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-12 sm:text-sm border-gray-300 rounded-md py-2 border" 
+                                placeholder="Enter name" required>
+                        </div>
+                    </div>
+                `;
+                
+                if (i % 2 === 0) {
+                    inputContainer.innerHTML += `</div>`;
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900">Create Debate Room</h1>
+                <p class="mt-2 text-gray-600">Set up your debate format and add participants</p>
+            </div>
+
+            <form method="POST" class="space-y-8">
+                {% csrf_token %}
+                
+                <div class="space-y-4">
+                    <label class="text-lg font-medium text-gray-900">Select Debate Format:</label>
+                    
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="player_count" value="4" onchange="showPlayerInputs()" 
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <div>
+                                    <p class="text-gray-900 font-medium">Standard Format</p>
+                                    <p class="text-gray-500 text-sm">4 Players (2 teams)</p>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="radio" name="player_count" value="8" onchange="showPlayerInputs()" 
+                                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300">
+                                <div>
+                                    <p class="text-gray-900 font-medium">British Parliamentary</p>
+                                    <p class="text-gray-500 text-sm">8 Players (4 teams)</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="format-info" class="mt-6"></div>
+                
+                <div id="player-inputs" class="space-y-6"></div>
+                
+                <div class="pt-5">
+                    <div class="flex justify-end">
+                        <button type="button" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Create Debate Room
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

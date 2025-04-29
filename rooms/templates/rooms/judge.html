@@ -1,0 +1,899 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge Room: {{ room.id }} - {{ room.topic }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --govt-color: #10b981;
+            --govt-dark: #059669;
+            --opp-color: #ef4444;
+            --opp-dark: #dc2626;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --card-shadow-hover: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .debate-card {
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        .debate-card:hover {
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-2px);
+        }
+        
+        .timer-circle {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+        
+        .timer-progress {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        .govt-gradient {
+            background: linear-gradient(to right, var(--govt-color), var(--govt-dark));
+        }
+        
+        .opp-gradient {
+            background: linear-gradient(to right, var(--opp-color), var(--opp-dark));
+        }
+        
+        .input-focus:focus {
+            border-color: var(--primary-color);
+            ring: 2px;
+            ring-color: var(--primary-color);
+        }
+        
+        .btn-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        /* For Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f1f1f1;
+        }
+        
+        .sticky-controls {
+            position: sticky;
+            bottom: 20px;
+            z-index: 100;
+        }
+        
+        .floating-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: white;
+            border-radius: 50%;
+            padding: 10px;
+            box-shadow: var(--card-shadow);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Fixed Timer Control (Hidden by default) -->
+    <div class="floating-timer hidden" id="floating-timer">
+        <div class="timer-circle bg-white rounded-full flex items-center justify-center shadow-lg">
+            <svg class="w-full h-full" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+                <circle class="timer-progress" cx="60" cy="60" r="54" fill="none" stroke="#2563eb" stroke-width="8" stroke-dasharray="339.292" stroke-dashoffset="0"/>
+            </svg>
+            <div class="absolute flex flex-col items-center justify-center">
+                <span class="text-3xl font-bold" id="floating-time-display">7:00</span>
+                <div class="mt-1">
+                    <button class="text-sm px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" id="floating-timer-toggle">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="text-sm px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600" id="floating-timer-reset">
+                        <i class="fas fa-redo-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header Section -->
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">British Parliamentary Debate</h1>
+                    <h2 class="text-xl text-gray-600">Room: {{ room.id }}</h2>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center" id="show-timer-btn">
+                        <i class="fas fa-clock mr-2"></i> Show Timer
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Debate Topic Card -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 debate-card">
+                <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 rounded-t-lg -mt-6 -mx-6 mb-4">
+                    <h3 class="text-xl font-semibold">Topic: {{ room.topic }}</h3>
+                </div>
+                <div class="space-y-4">
+                    <p class="text-lg font-medium text-gray-700">Please score each speaker based on the following criteria:</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-start">
+                            <div class="bg-blue-100 rounded-full p-2 mr-3">
+                                <i class="fas fa-brain text-blue-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Content (0-30)</h4>
+                                <p class="text-gray-600 text-sm">Quality of arguments, evidence, and analysis</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-purple-100 rounded-full p-2 mr-3">
+                                <i class="fas fa-comment-dots text-purple-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Style (0-30)</h4>
+                                <p class="text-gray-600 text-sm">Delivery, persuasiveness, and engagement</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 rounded-full p-2 mr-3">
+                                <i class="fas fa-chess text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Strategy (0-30)</h4>
+                                <p class="text-gray-600 text-sm">Structure, role fulfillment, and response to debate</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-yellow-100 rounded-full p-2 mr-3">
+                                <i class="fas fa-hand-point-up text-yellow-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Points of Information (0-10)</h4>
+                                <p class="text-gray-600 text-sm">Quality and relevance of POIs offered/answered</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Timer Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8 debate-card">
+            <h3 class="text-xl font-semibold mb-4">Speech Timer</h3>
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="timer-circle bg-white rounded-full flex items-center justify-center mb-4 md:mb-0">
+                    <svg class="w-full h-full" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+                        <circle id="timer-progress" class="timer-progress" cx="60" cy="60" r="54" fill="none" stroke="#2563eb" stroke-width="8" stroke-dasharray="339.292" stroke-dashoffset="0"/>
+                    </svg>
+                    <div class="absolute flex flex-col items-center justify-center">
+                        <span class="text-3xl font-bold" id="time-display">7:00</span>
+                        <span class="text-sm text-gray-500" id="time-status">Ready</span>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col space-y-4">
+                    <div class="space-y-2">
+                        <button id="timer-toggle" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow transition-all flex items-center justify-center">
+                            <i class="fas fa-play mr-2"></i> Start Timer
+                        </button>
+                        <button id="timer-reset" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg shadow transition-all flex items-center justify-center">
+                            <i class="fas fa-redo-alt mr-2"></i> Reset
+                        </button>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <h4 class="font-medium text-gray-700 mb-2">Speech Duration</h4>
+                        <div class="flex items-center space-x-2">
+                            <button class="time-preset-btn bg-white border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 active" data-time="420">7 min</button>
+                            <button class="time-preset-btn bg-white border border-gray-300 px-3 py-1 rounded hover:bg-gray-50" data-time="300">5 min</button>
+                            <button class="time-preset-btn bg-white border border-gray-300 px-3 py-1 rounded hover:bg-gray-50" data-time="180">3 min</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-medium text-gray-700">Sound Alerts</h4>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sound-toggle" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scoring Form -->
+        <form method="post" id="judging-form" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Opening Government Section -->
+            <div class="mb-6">
+                <div class="govt-gradient text-white py-3 px-4 rounded-t-lg flex items-center">
+                    <i class="fas fa-landmark mr-2"></i>
+                    <h3 class="text-xl font-semibold">Opening Government</h3>
+                </div>
+                
+                {% for player in players %}
+                    {% if player.role == "PM" or player.role == "DPM" %}
+                        <div class="bg-white rounded-b-lg shadow-md mb-6 debate-card">
+                            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                                <h4 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    {% if player.role == "PM" %}
+                                        <span class="inline-block w-8 h-8 bg-govt-color text-white rounded-full mr-2 flex items-center justify-center text-sm">PM</span>
+                                    {% else %}
+                                        <span class="inline-block w-8 h-8 bg-govt-color text-white rounded-full mr-2 flex items-center justify-center text-sm">DPM</span>
+                                    {% endif %}
+                                    {{ player.name }} - {{ player.get_role_display }}
+                                </h4>
+                                <span class="text-xl font-bold text-govt-color total-score" id="total_{{ player.id }}">0.0</span>
+                            </div>
+                            
+                            <div class="p-5">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label for="content_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Content (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="content_{{ player.id }}" name="content_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="style_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Style (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="style_{{ player.id }}" name="style_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="strategy_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Strategy (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="strategy_{{ player.id }}" name="strategy_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="poi_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">POIs (0-10)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="poi_{{ player.id }}" name="poi_{{ player.id }}" min="0" max="10" step="0.5" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="notes_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                    <textarea class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]" 
+                                        id="notes_{{ player.id }}" name="notes_{{ player.id }}" placeholder="Enter your feedback for this speaker..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <!-- Opening Opposition Section -->
+            <div class="mb-6">
+                <div class="opp-gradient text-white py-3 px-4 rounded-t-lg flex items-center">
+                    <i class="fas fa-balance-scale mr-2"></i>
+                    <h3 class="text-xl font-semibold">Opening Opposition</h3>
+                </div>
+                
+                {% for player in players %}
+                    {% if player.role == "LO" or player.role == "DLO" %}
+                        <div class="bg-white rounded-b-lg shadow-md mb-6 debate-card">
+                            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                                <h4 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    {% if player.role == "LO" %}
+                                        <span class="inline-block w-8 h-8 bg-opp-color text-white rounded-full mr-2 flex items-center justify-center text-sm">LO</span>
+                                    {% else %}
+                                        <span class="inline-block w-8 h-8 bg-opp-color text-white rounded-full mr-2 flex items-center justify-center text-sm">DLO</span>
+                                    {% endif %}
+                                    {{ player.name }} - {{ player.get_role_display }}
+                                </h4>
+                                <span class="text-xl font-bold text-opp-color total-score" id="total_{{ player.id }}">0.0</span>
+                            </div>
+                            
+                            <div class="p-5">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label for="content_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Content (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="content_{{ player.id }}" name="content_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="style_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Style (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="style_{{ player.id }}" name="style_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="strategy_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Strategy (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="strategy_{{ player.id }}" name="strategy_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="poi_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">POIs (0-10)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="poi_{{ player.id }}" name="poi_{{ player.id }}" min="0" max="10" step="0.5" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="notes_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                    <textarea class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]" 
+                                        id="notes_{{ player.id }}" name="notes_{{ player.id }}" placeholder="Enter your feedback for this speaker..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <!-- Closing Government Section -->
+            <div class="mb-6">
+                <div class="govt-gradient text-white py-3 px-4 rounded-t-lg flex items-center">
+                    <i class="fas fa-landmark mr-2"></i>
+                    <h3 class="text-xl font-semibold">Closing Government</h3>
+                </div>
+                
+                {% for player in players %}
+                    {% if player.role == "MG" or player.role == "GW" %}
+                        <div class="bg-white rounded-b-lg shadow-md mb-6 debate-card">
+                            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                                <h4 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    {% if player.role == "MG" %}
+                                        <span class="inline-block w-8 h-8 bg-govt-color text-white rounded-full mr-2 flex items-center justify-center text-sm">MG</span>
+                                    {% else %}
+                                        <span class="inline-block w-8 h-8 bg-govt-color text-white rounded-full mr-2 flex items-center justify-center text-sm">GW</span>
+                                    {% endif %}
+                                    {{ player.name }} - {{ player.get_role_display }}
+                                </h4>
+                                <span class="text-xl font-bold text-govt-color total-score" id="total_{{ player.id }}">0.0</span>
+                            </div>
+                            
+                            <div class="p-5">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label for="content_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Content (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="content_{{ player.id }}" name="content_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="style_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Style (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="style_{{ player.id }}" name="style_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="strategy_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Strategy (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="strategy_{{ player.id }}" name="strategy_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="poi_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">POIs (0-10)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="poi_{{ player.id }}" name="poi_{{ player.id }}" min="0" max="10" step="0.5" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="notes_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                    <textarea class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]" 
+                                        id="notes_{{ player.id }}" name="notes_{{ player.id }}" placeholder="Enter your feedback for this speaker..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <!-- Closing Opposition Section -->
+            <div class="mb-6">
+                <div class="opp-gradient text-white py-3 px-4 rounded-t-lg flex items-center">
+                    <i class="fas fa-balance-scale mr-2"></i>
+                    <h3 class="text-xl font-semibold">Closing Opposition</h3>
+                </div>
+                
+                {% for player in players %}
+                    {% if player.role == "MO" or player.role == "OW" %}
+                        <div class="bg-white rounded-b-lg shadow-md mb-6 debate-card">
+                            <div class="p-5 border-b border-gray-200 flex justify-between items-center">
+                                <h4 class="text-lg font-semibold text-gray-800 flex items-center">
+                                    {% if player.role == "MO" %}
+                                        <span class="inline-block w-8 h-8 bg-opp-color text-white rounded-full mr-2 flex items-center justify-center text-sm">MO</span>
+                                    {% else %}
+                                        <span class="inline-block w-8 h-8 bg-opp-color text-white rounded-full mr-2 flex items-center justify-center text-sm">OW</span>
+                                    {% endif %}
+                                    {{ player.name }} - {{ player.get_role_display }}
+                                </h4>
+                                <span class="text-xl font-bold text-opp-color total-score" id="total_{{ player.id }}">0.0</span>
+                            </div>
+                            
+                            <div class="p-5">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <label for="content_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Content (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="content_{{ player.id }}" name="content_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="style_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Style (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="style_{{ player.id }}" name="style_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="strategy_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Strategy (0-30)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="strategy_{{ player.id }}" name="strategy_{{ player.id }}" min="0" max="30" step="0.5" required>
+                                    </div>
+                                    <div>
+                                        <label for="poi_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">POIs (0-10)</label>
+                                        <input type="number" class="score-input w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                                            id="poi_{{ player.id }}" name="poi_{{ player.id }}" min="0" max="10" step="0.5" required>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label for="notes_{{ player.id }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                    <textarea class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]" 
+                                        id="notes_{{ player.id }}" name="notes_{{ player.id }}" placeholder="Enter your feedback for this speaker..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- General Feedback Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 debate-card">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-comments text-blue-600 mr-2"></i>
+                    General Debate Feedback
+                </h3>
+                <div>
+                    <textarea class="w-full p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]" 
+                        id="general_feedback" name="general_feedback" 
+                        placeholder="Enter your overall feedback about the debate, including general strengths and areas for improvement across all teams..."></textarea>
+                </div>
+            </div>
+
+            <!-- Team Rankings Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 debate-card">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fas fa-trophy text-yellow-500 mr-2"></i>
+                    Team Rankings
+                </h3>
+                <p class="text-gray-600 mb-4">Rank the teams from 1 (best) to 4 (lowest):</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border rounded-lg p-4 bg-gradient-to-r from-govt-color/10 to-white">
+                        <h4 class="font-medium text-govt-color mb-2">Opening Government</h4>
+                        <select name="rank_og" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Rank --</option>
+                            <option value="1">1st Place</option>
+                            <option value="2">2nd Place</option>
+                            <option value="3">3rd Place</option>
+                            <option value="4">4th Place</option>
+                        </select>
+                    </div>
+                    
+                    <div class="border rounded-lg p-4 bg-gradient-to-r from-opp-color/10 to-white">
+                        <h4 class="font-medium text-opp-color mb-2">Opening Opposition</h4>
+                        <select name="rank_oo" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Rank --</option>
+                            <option value="1">1st Place</option>
+                            <option value="2">2nd Place</option>
+                            <option value="3">3rd Place</option>
+                            <option value="4">4th Place</option>
+                        </select>
+                    </div>
+                    
+                    <div class="border rounded-lg p-4 bg-gradient-to-r from-govt-color/10 to-white">
+                        <h4 class="font-medium text-govt-color mb-2">Closing Government</h4>
+                        <select name="rank_cg" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Rank --</option>
+                            <option value="1">1st Place</option>
+                            <option value="2">2nd Place</option>
+                            <option value="3">3rd Place</option>
+                            <option value="4">4th Place</option>
+                        </select>
+                    </div>
+                    
+                    <div class="border rounded-lg p-4 bg-gradient-to-r from-opp-color/10 to-white">
+                        <h4 class="font-medium text-opp-color mb-2">Closing Opposition</h4>
+                        <select name="rank_co" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Select Rank --</option>
+                            <option value="1">1st Place</option>
+                            <option value="2">2nd Place</option>
+                            <option value="3">3rd Place</option>
+                            <option value="4">4th Place</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Progress Bar -->
+            <div class="sticky-controls">
+                <div class="bg-white shadow-lg rounded-lg p-4 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="text-gray-700 font-medium">Completion:</span>
+                        <div class="ml-3 bg-gray-200 rounded-full h-4 w-40">
+                            <div class="bg-blue-600 h-4 rounded-full" id="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <span class="ml-2 text-sm text-gray-600" id="progress-text">0%</span>
+                    </div>
+                    <div>
+                        <button type="button" id="save-progress" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg shadow-md transition-all mr-2">
+                            <i class="fas fa-save mr-1"></i> Save Progress
+                        </button>
+                        <button type="submit" id="submit-form" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow-md transition-all">
+                            <i class="fas fa-paper-plane mr-1"></i> Submit Scores
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Audio elements for timer alerts -->
+    <audio id="bell-sound" preload="auto">
+        <source src="{% static 'bell.mp3' %}" type="audio/mpeg">
+    </audio>
+    <audio id="warning-sound" preload="auto">
+        <source src="{% static 'warning.mp3' %}" type="audio/mpeg">
+    </audio>
+    <audio id="end-sound" preload="auto">
+        <source src="{% static 'end.mp3' %}" type="audio/mpeg">
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Timer functionality
+            let timerInterval;
+            let totalSeconds = 420; // 7 minutes default
+            let currentSeconds = totalSeconds;
+            let isTimerRunning = false;
+            let soundEnabled = true;
+            
+            const timerToggleBtn = document.getElementById('timer-toggle');
+            const timerResetBtn = document.getElementById('timer-reset');
+            const timeDisplay = document.getElementById('time-display');
+            const timeStatus = document.getElementById('time-status');
+            const timerProgress = document.getElementById('timer-progress');
+            const soundToggle = document.getElementById('sound-toggle');
+            const bellSound = document.getElementById('bell-sound');
+            const warningSound = document.getElementById('warning-sound');
+            const endSound = document.getElementById('end-sound');
+            const floatingTimer = document.getElementById('floating-timer');
+            const floatingTimeDisplay = document.getElementById('floating-time-display');
+            const floatingTimerToggle = document.getElementById('floating-timer-toggle');
+            const floatingTimerReset = document.getElementById('floating-timer-reset');
+            const showTimerBtn = document.getElementById('show-timer-btn');
+            
+            // Timer preset buttons
+            const timePresetBtns = document.querySelectorAll('.time-preset-btn');
+            
+            // Circular progress properties
+            const circleRadius = 54;
+            const circumference = 2 * Math.PI * circleRadius;
+            
+            // Format time as MM:SS
+            function formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+            
+            // Update timer display and progress
+            function updateTimer() {
+                // Update main timer
+                timeDisplay.textContent = formatTime(currentSeconds);
+                floatingTimeDisplay.textContent = formatTime(currentSeconds);
+                
+                // Update progress circle
+                const progress = currentSeconds / totalSeconds;
+                const dashoffset = circumference * (1 - progress);
+                timerProgress.style.strokeDasharray = circumference;
+                timerProgress.style.strokeDashoffset = dashoffset;
+                
+                // Update all timer circles with class timer-progress
+                document.querySelectorAll('.timer-progress').forEach(circle => {
+                    circle.style.strokeDasharray = circumference;
+                    circle.style.strokeDashoffset = dashoffset;
+                });
+                
+                // Color and status changes based on time remaining
+                if (currentSeconds <= 60) {
+                    timerProgress.style.stroke = '#ef4444'; // Red
+                    timeStatus.textContent = 'Ending Soon';
+                    timeStatus.className = 'text-sm text-red-500';
+                } else if (currentSeconds <= 120) {
+                    timerProgress.style.stroke = '#f59e0b'; // Amber
+                    timeStatus.textContent = 'Wrap Up';
+                    timeStatus.className = 'text-sm text-amber-500';
+                } else {
+                    timerProgress.style.stroke = '#2563eb'; // Blue
+                    timeStatus.textContent = 'Speaking Time';
+                    timeStatus.className = 'text-sm text-blue-500';
+                }
+                
+                // Play sounds at specific times if enabled
+                if (soundEnabled) {
+                    if (currentSeconds === 120) { // 2 minute warning
+                        warningSound.play();
+                    } else if (currentSeconds === 60) { // 1 minute warning
+                        warningSound.play();
+                    } else if (currentSeconds === 0) { // Time's up
+                        endSound.play();
+                    }
+                }
+                
+                // Stop the timer when it reaches zero
+                if (currentSeconds === 0) {
+                    clearInterval(timerInterval);
+                    isTimerRunning = false;
+                    timerToggleBtn.innerHTML = '<i class="fas fa-redo-alt mr-2"></i> Restart';
+                    floatingTimerToggle.innerHTML = '<i class="fas fa-redo-alt"></i>';
+                }
+            }
+            
+            // Start/pause timer
+            function toggleTimer() {
+                if (isTimerRunning) {
+                    clearInterval(timerInterval);
+                    timerToggleBtn.innerHTML = '<i class="fas fa-play mr-2"></i> Resume';
+                    floatingTimerToggle.innerHTML = '<i class="fas fa-play"></i>';
+                    isTimerRunning = false;
+                } else {
+                    if (currentSeconds === 0) {
+                        // Reset the timer if it's already finished
+                        currentSeconds = totalSeconds;
+                    }
+                    
+                    timerInterval = setInterval(() => {
+                        if (currentSeconds > 0) {
+                            currentSeconds--;
+                            updateTimer();
+                        } else {
+                            clearInterval(timerInterval);
+                            isTimerRunning = false;
+                            timerToggleBtn.innerHTML = '<i class="fas fa-redo-alt mr-2"></i> Restart';
+                            floatingTimerToggle.innerHTML = '<i class="fas fa-redo-alt"></i>';
+                        }
+                    }, 1000);
+                    
+                    timerToggleBtn.innerHTML = '<i class="fas fa-pause mr-2"></i> Pause';
+                    floatingTimerToggle.innerHTML = '<i class="fas fa-pause"></i>';
+                    isTimerRunning = true;
+                    
+                    if (soundEnabled && currentSeconds === totalSeconds) {
+                        bellSound.play(); // Play bell sound when starting from beginning
+                    }
+                }
+            }
+            
+            // Reset timer
+            function resetTimer() {
+                clearInterval(timerInterval);
+                currentSeconds = totalSeconds;
+                updateTimer();
+                isTimerRunning = false;
+                timerToggleBtn.innerHTML = '<i class="fas fa-play mr-2"></i> Start Timer';
+                floatingTimerToggle.innerHTML = '<i class="fas fa-play"></i>';
+            }
+            
+            // Set timer preset
+            timePresetBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    timePresetBtns.forEach(b => b.classList.remove('active', 'bg-blue-100', 'border-blue-500'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active', 'bg-blue-100', 'border-blue-500');
+                    
+                    // Set new timer duration
+                    totalSeconds = parseInt(this.dataset.time);
+                    
+                    // Reset timer with new duration
+                    resetTimer();
+                });
+            });
+            
+            // Toggle sound
+            soundToggle.addEventListener('change', function() {
+                soundEnabled = this.checked;
+            });
+            
+            // Show/hide floating timer
+            showTimerBtn.addEventListener('click', function() {
+                floatingTimer.classList.toggle('hidden');
+                if (!floatingTimer.classList.contains('hidden')) {
+                    this.textContent = 'Hide Timer';
+                } else {
+                    this.textContent = 'Show Timer';
+                }
+            });
+            
+            // Event listeners for timer controls
+            timerToggleBtn.addEventListener('click', toggleTimer);
+            timerResetBtn.addEventListener('click', resetTimer);
+            floatingTimerToggle.addEventListener('click', toggleTimer);
+            floatingTimerReset.addEventListener('click', resetTimer);
+            
+            // Initialize timer display
+            updateTimer();
+            
+            // Calculate totals dynamically
+            const scoreInputs = document.querySelectorAll('.score-input');
+            
+            scoreInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    // Get player ID from input name
+                    const playerId = this.id.split('_')[1];
+                    
+                    // Calculate total for this player
+                    const content = parseFloat(document.getElementById(`content_${playerId}`).value) || 0;
+                    const style = parseFloat(document.getElementById(`style_${playerId}`).value) || 0;
+                    const strategy = parseFloat(document.getElementById(`strategy_${playerId}`).value) || 0;
+                    const poi = parseFloat(document.getElementById(`poi_${playerId}`).value) || 0;
+                    
+                    // Find total display element
+                    const totalElement = document.getElementById(`total_${playerId}`);
+                    
+                    // Update total
+                    const total = content + style + strategy + poi;
+                    totalElement.textContent = total.toFixed(1);
+                    
+                    // Update completion progress
+                    updateProgress();
+                });
+            });
+            
+            // Progress tracking
+            function updateProgress() {
+                const totalFields = document.querySelectorAll('.score-input').length;
+                let filledFields = 0;
+                
+                document.querySelectorAll('.score-input').forEach(input => {
+                    if (input.value !== '') filledFields++;
+                });
+                
+                const progressPercent = Math.round((filledFields / totalFields) * 100);
+                document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+                document.getElementById('progress-text').textContent = `${progressPercent}%`;
+                
+                // Change color based on completion
+                const progressBar = document.getElementById('progress-bar');
+                if (progressPercent < 30) {
+                    progressBar.classList.remove('bg-yellow-500', 'bg-green-500');
+                    progressBar.classList.add('bg-red-500');
+                } else if (progressPercent < 70) {
+                    progressBar.classList.remove('bg-red-500', 'bg-green-500');
+                    progressBar.classList.add('bg-yellow-500');
+                } else {
+                    progressBar.classList.remove('bg-red-500', 'bg-yellow-500');
+                    progressBar.classList.add('bg-green-500');
+                }
+                
+                // Pulse submit button when 100% complete
+                if (progressPercent === 100) {
+                    document.getElementById('submit-form').classList.add('btn-pulse');
+                } else {
+                    document.getElementById('submit-form').classList.remove('btn-pulse');
+                }
+            }
+            
+            // Initialize progress
+            updateProgress();
+            
+            // Save progress functionality (local storage)
+            document.getElementById('save-progress').addEventListener('click', function() {
+                const formData = new FormData(document.getElementById('judging-form'));
+                const saveData = {};
+                
+                for (const [key, value] of formData.entries()) {
+                    saveData[key] = value;
+                }
+                
+                localStorage.setItem('debate_judging_progress', JSON.stringify(saveData));
+                
+                // Show save confirmation
+                const thisButton = this;
+                thisButton.textContent = 'Saved!';
+                thisButton.classList.remove('bg-gray-500');
+                thisButton.classList.add('bg-green-500');
+                
+                setTimeout(() => {
+                    thisButton.innerHTML = '<i class="fas fa-save mr-1"></i> Save Progress';
+                    thisButton.classList.remove('bg-green-500');
+                    thisButton.classList.add('bg-gray-500');
+                }, 2000);
+            });
+            
+            // Load saved progress if available
+            function loadSavedProgress() {
+                const savedData = localStorage.getItem('debate_judging_progress');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    
+                    for (const key in data) {
+                        const input = document.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            input.value = data[key];
+                            
+                            // Trigger change event for score inputs to update totals
+                            if (input.classList.contains('score-input')) {
+                                const event = new Event('input');
+                                input.dispatchEvent(event);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Load saved progress on page load
+            loadSavedProgress();
+            
+            // Form validation before submission
+            document.getElementById('judging-form').addEventListener('submit', function(e) {
+                // Validate team rankings (all teams must have different ranks)
+                const rankInputs = [
+                    document.querySelector('[name="rank_og"]').value,
+                    document.querySelector('[name="rank_oo"]').value,
+                    document.querySelector('[name="rank_cg"]').value,
+                    document.querySelector('[name="rank_co"]').value
+                ].filter(rank => rank !== '');
+                
+                // Check if all ranks are selected
+                if (rankInputs.length < 4) {
+                    e.preventDefault();
+                    alert('Please rank all four teams before submitting.');
+                    return false;
+                }
+                
+                // Check for duplicate ranks
+                const uniqueRanks = new Set(rankInputs);
+                if (uniqueRanks.size !== rankInputs.length) {
+                    e.preventDefault();
+                    alert('Each team must have a unique rank (1st, 2nd, 3rd, or 4th).');
+                    return false;
+                }
+                
+                // Clear local storage on successful submission
+                localStorage.removeItem('debate_judging_progress');
+                return true;
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debate Arena</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 text-white py-4">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-brain text-2xl text-purple-400"></i>
+                <span class="font-bold text-xl">Debate Arena</span>
+            </div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#" class="hover:text-purple-400 transition">Home</a>
+                <a href="#" class="hover:text-purple-400 transition">About</a>
+                <a href="#" class="hover:text-purple-400 transition">How It Works</a>
+                <a href="#" class="hover:text-purple-400 transition">Contact</a>
+            </div>
+            <div class="md:hidden">
+                <button class="text-white focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="flex-grow flex flex-col md:flex-row container mx-auto px-6 py-12">
+        <div class="md:w-1/2 flex flex-col justify-center">
+            <h1 class="text-4xl md:text-5xl font-bold text-black mb-4">Welcome to <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">Debate Arena</span></h1>
+            <p class="text-gray-600 text-lg mb-8">Engage in thoughtful debates, challenge your perspectives, and refine your critical thinking skills in our digital debating platform.</p>
+            
+            <div class="flex flex-wrap gap-4">
+                <a href="{% url 'room_create' %}" class="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:from-purple-600 hover:to-blue-600 transition transform hover:-translate-y-1">
+                    <i class="fas fa-plus-circle mr-2"></i> Create a Debate Room
+                </a>
+                <button id="join-button" class="bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-gray-600 transition transform hover:-translate-y-1">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Join a Room
+                </button>
+                <a href="{% url 'tutorial_list' %}" class="bg-gradient-to-r from-green-700 to-gray-800 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:from-green-600 hover:to-blue-600 transition transform hover:-translate-y-1">
+                    <i class="fa fa-book mr-2"></i> Learn how to Debate 
+                </a>
+            </div>
+        </div>
+        
+        <div class="md:w-1/2 flex items-center justify-center mt-12 md:mt-0">
+            <!-- Join Room Form (Initially Hidden) -->
+            <div id="join-form" class="hidden bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md transform transition-all">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-door-open mr-3 text-purple-400"></i>
+                    Join a Debate Room
+                </h2>
+                <form action="{% url 'join_room' %}" method="POST" class="space-y-6">
+                    {% csrf_token %}
+                    <div>
+                        <label for="room_id" class="block mb-2 text-gray-300 font-medium">Room ID</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-hashtag text-gray-500"></i>
+                            </div>
+                            <input type="text" name="room_id" id="room_id" class="bg-gray-700 text-white pl-10 w-full py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Enter room ID" required>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <button type="button" id="cancel-join" class="text-gray-400 hover:text-gray-300 transition">
+                            <i class="fas fa-times mr-1"></i> Cancel
+                        </button>
+                        <button type="submit" class="bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold py-2 px-6 rounded-lg hover:from-green-600 hover:to-teal-600 transition shadow-lg">
+                            Join Room <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Feature Highlights (Visible when form is hidden) -->
+            <div id="features" class="bg-gray-700 p-8 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md">
+                <h2 class="text-2xl font-bold text-white mb-6">Why Debate Arena?</h2>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="bg-purple-500 p-2 rounded-lg mr-4">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Connect with Thinkers</h3>
+                            <p class="text-gray-300">Engage with diverse perspectives from around the world</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-blue-500 p-2 rounded-lg mr-4">
+                            <i class="fas fa-brain text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Enhance Critical Thinking</h3>
+                            <p class="text-gray-300">Develop stronger reasoning and argumentation skills</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-teal-500 p-2 rounded-lg mr-4">
+                            <i class="fas fa-chart-line text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Track Your Progress</h3>
+                            <p class="text-gray-300">Monitor your debate performance and improvement</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 py-8">
+        <div class="container mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p>© {{ year }} FEAST FLOW — All rights reserved</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="hover:text-purple-400 transition"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="hover:text-purple-400 transition"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="hover:text-purple-400 transition"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="hover:text-purple-400 transition"><i class="fab fa-github"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Toggle join form visibility
+        document.getElementById('join-button').addEventListener('click', function() {
+            document.getElementById('features').classList.add('hidden');
+            document.getElementById('join-form').classList.remove('hidden');
+        });
+        
+        document.getElementById('cancel-join').addEventListener('click', function() {
+            document.getElementById('join-form').classList.add('hidden');
+            document.getElementById('features').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
