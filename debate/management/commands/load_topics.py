@@ -25,7 +25,7 @@ class Command(BaseCommand):
 
 
 
-from django.core.management.base import BaseCommand
+"""from django.core.management.base import BaseCommand
 from debate.models import *  # Change if your model is in another app
 import os
 import django
@@ -54,3 +54,31 @@ class Command(BaseCommand):
                         self.stdout.write(f"Topic already exists: {topic_name}")
 
         self.stdout.write(self.style.SUCCESS('Finished loading debate topics.'))
+"""
+import os
+from django.core.management.base import BaseCommand
+from ...models import Topic  # make sure 'debate' is your app name
+
+class Command(BaseCommand):
+    help = 'Load debate topics from a text file into the database'
+
+    def handle(self, *args, **kwargs):
+        # Adjust to the correct path of your .txt file (assumes it's next to manage.py)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        file_path = os.path.join(base_dir, 'this_house_debate_topics.txt')
+
+        if not os.path.exists(file_path):
+            self.stderr.write(self.style.ERROR(f"File not found: {file_path}"))
+            return
+
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                topic_title = line.strip()
+                if topic_title:
+                    topic, created = Topic.objects.get_or_create(title=topic_title)
+                    if created:
+                        self.stdout.write(self.style.SUCCESS(f"Created topic: {topic_title}"))
+                    else:
+                        self.stdout.write(f"Topic already exists: {topic_title}")
+
+        self.stdout.write(self.style.SUCCESS('Finished loading topics.'))
